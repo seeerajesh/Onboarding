@@ -44,10 +44,22 @@ st.title("Customer Onboarding Platform")
 
 # File upload section
 st.header("Bulk Upload CSV/Excel")
-uploaded_file = st.file_uploader("Upload your CSV/Excel file", type=["csv", "xlsx"])
 
-if uploaded_file:
-    processed_df = process_uploaded_file(uploaded_file)
+# Upload button in bright blue color
+st.markdown("""
+    <style>
+        div.stButton > button:first-child { 
+            background-color: #007BFF; 
+            color: white; 
+            font-weight: bold;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+upload_button = st.file_uploader("Upload CSV/Excel", type=["csv", "xlsx"], key="upload")
+
+if upload_button:
+    processed_df = process_uploaded_file(upload_button)
     if processed_df is not None:
         st.dataframe(processed_df)
         st.download_button("Download Processed File", data=download_processed_file(processed_df), file_name="processed_data.csv")
