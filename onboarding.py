@@ -9,18 +9,21 @@ def process_uploaded_file(uploaded_file):
     if uploaded_file is not None:
         try:
             df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
-            required_columns = {"Company Name", "GST/PAN", "email id", "contact name", "contact number"}
+            
+            # Normalize column names (strip spaces, convert to lowercase)
+            df.columns = df.columns.str.strip().str.lower()
+            required_columns = {"company name", "gst/pan", "email id", "contact name", "contact number"}
             
             if not required_columns.issubset(set(df.columns)):
-                st.error("Uploaded file is missing required columns.")
+                st.error(f"Uploaded file is missing required columns. Found columns: {list(df.columns)}")
                 return None
             
             # Adding comments column
             df["comments"] = "Successful"
             
             # Checking for duplicate GST/PAN within the uploaded file
-            duplicate_rows = df[df.duplicated(subset=["GST/PAN"], keep=False)]
-            df.loc[df["GST/PAN"].isin(disallowed_gst_pan) | df["GST/PAN"].duplicated(keep=False), "comments"] = "Failure, company already exists"
+            duplicate_rows = df[df.duplicated(subset=["gst/pan"], keep=False)]
+            df.loc[df["gst/pan"].isin(disallowed_gst_pan) | df["gst/pan"].duplicated(keep=False), "comments"] = "Failure, company already exists"
             
             # Summary statistics
             success_count = (df["comments"] == "Successful").sum()
