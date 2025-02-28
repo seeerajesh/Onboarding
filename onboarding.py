@@ -7,14 +7,17 @@ import os
 disallowed_gst_pan = {"AAAA1234K", "BBBB1234K", "CCCC1234K"}
 
 # File to store uploaded transporter data
-DATA_FILE = "transporter_data.csv"
+data_file = "transporter_data.csv"
 
 # Ensure the data file exists
-if not os.path.exists(DATA_FILE):
-    pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"]).to_csv(DATA_FILE, index=False)
+if not os.path.exists(data_file):
+    pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"]).to_csv(data_file, index=False)
 
 # Load existing data
-existing_data = pd.read_csv(DATA_FILE)
+def load_existing_data():
+    return pd.read_csv(data_file) if os.path.exists(data_file) else pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"])
+
+existing_data = load_existing_data()
 
 def process_uploaded_file(uploaded_file):
     if uploaded_file is not None:
@@ -22,7 +25,7 @@ def process_uploaded_file(uploaded_file):
             file_extension = "csv" if uploaded_file.name.endswith(".csv") else "xlsx"
             df = pd.read_csv(uploaded_file) if file_extension == "csv" else pd.read_excel(uploaded_file)
             
-            # Normalize column names (strip spaces, convert to lowercase)
+            # Normalize column names
             df.columns = df.columns.str.strip().str.lower()
             
             # Expected column mapping
@@ -54,9 +57,6 @@ def process_uploaded_file(uploaded_file):
                 if pd.isna(gst_pan) or any(pd.isna(row[col]) for col in column_mapping.values()):
                     df.at[index, "Comments"] = "Failure, mandatory field not filled"
                 elif gst_pan in disallowed_gst_pan or gst_pan in existing_data["GST/PAN"].values:
-                    duplicate_entries = existing_data[existing_data["GST/PAN"] == gst_pan]
-                    st.warning(f"Duplicate GST/PAN found: {gst_pan}. Existing records:")
-                    st.dataframe(duplicate_entries)
                     df.at[index, "Comments"] = "Failure, company already exists"
             
             # Summary statistics
@@ -68,8 +68,8 @@ def process_uploaded_file(uploaded_file):
             # Append successful entries to the existing data file
             successful_entries = df[df["Comments"] == "Successful"]
             if not successful_entries.empty:
-                successful_entries.to_csv(DATA_FILE, mode='a', header=False, index=False)
-                
+                successful_entries.to_csv(data_file, mode='a', header=False, index=False)
+            
             return df, file_extension
         except Exception as e:
             st.error(f"Error processing file: {e}")
@@ -139,12 +139,13 @@ if menu_option == "Transporter Onboarding":
     submit_button = st.button("Submit", disabled=not (company_name and gst_pan and email_id and contact_name and contact_number))
     
     if submit_button:
+        existing_data = load_existing_data()
         if gst_pan in disallowed_gst_pan or gst_pan in existing_data["GST/PAN"].values:
             st.error("Failure: Company already exists")
         else:
             new_entry = pd.DataFrame([[company_name, gst_pan, email_id, contact_name, contact_number, "Successful"]],
                                      columns=existing_data.columns)
-            new_entry.to_csv(DATA_FILE, mode='a', header=False, index=False)
+            new_entry.to_csv(data_file, mode='a', header=False, index=False)
             st.success("Transporter created successfully")
 
 else:
