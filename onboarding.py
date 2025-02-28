@@ -81,19 +81,16 @@ if menu == "Transporter Onboarding":
                     
                     # Check for mandatory fields
                     if row.isnull().any():
-                        row["Comments"] = "Failure: Mandatory field missing"
                         failed_entries.append(row)
                         continue
                     
                     # Check for disallowed GST/PAN
                     if gst_pan in disallowed_gst_pan:
-                        row["Comments"] = "Failure: Disallowed GST/PAN"
                         failed_entries.append(row)
                         continue
                     
                     # Check for duplicate GST/PAN in existing data
                     if gst_pan in existing_data["GST/PAN"].values:
-                        row["Comments"] = "Failure: GST/PAN already exists"
                         failed_entries.append(row)
                         continue
                     
@@ -106,7 +103,7 @@ if menu == "Transporter Onboarding":
                     new_df = pd.DataFrame(new_entries)
                     new_df.to_csv(data_file, mode='a', header=False, index=False, encoding='utf-8', sep=',')
                     existing_data = load_existing_data()
-                    
+                
                 # Output results
                 success_count = len(new_entries)
                 failure_count = len(failed_entries)
