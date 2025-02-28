@@ -3,17 +3,18 @@ import pandas as pd
 import io
 import os
 
-# Predefined list of duplicate GST/PAN values
+# Predefined list of disallowed GST/PAN values
 disallowed_gst_pan = {"AAAA1234K", "BBBB1234K", "CCCC1234K"}
 
 # File to store uploaded transporter data
 DATA_FILE = "transporter_data.csv"
 
+# Ensure the data file exists
+if not os.path.exists(DATA_FILE):
+    pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"]).to_csv(DATA_FILE, index=False)
+
 # Load existing data
-if os.path.exists(DATA_FILE):
-    existing_data = pd.read_csv(DATA_FILE)
-else:
-    existing_data = pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"])
+existing_data = pd.read_csv(DATA_FILE)
 
 def process_uploaded_file(uploaded_file):
     if uploaded_file is not None:
@@ -47,12 +48,15 @@ def process_uploaded_file(uploaded_file):
             # Adding comments column
             df["Comments"] = "Successful"
             
-            # Checking for duplicate GST/PAN within the uploaded file
+            # Checking for duplicate GST/PAN within the uploaded file and existing records
             for index, row in df.iterrows():
                 gst_pan = row["GST/PAN"]
                 if pd.isna(gst_pan) or any(pd.isna(row[col]) for col in column_mapping.values()):
                     df.at[index, "Comments"] = "Failure, mandatory field not filled"
                 elif gst_pan in disallowed_gst_pan or gst_pan in existing_data["GST/PAN"].values:
+                    duplicate_entries = existing_data[existing_data["GST/PAN"] == gst_pan]
+                    st.warning(f"Duplicate GST/PAN found: {gst_pan}. Existing records:")
+                    st.dataframe(duplicate_entries)
                     df.at[index, "Comments"] = "Failure, company already exists"
             
             # Summary statistics
@@ -63,8 +67,9 @@ def process_uploaded_file(uploaded_file):
             
             # Append successful entries to the existing data file
             successful_entries = df[df["Comments"] == "Successful"]
-            successful_entries.to_csv(DATA_FILE, mode='a', header=not os.path.exists(DATA_FILE), index=False)
-            
+            if not successful_entries.empty:
+                successful_entries.to_csv(DATA_FILE, mode='a', header=False, index=False)
+                
             return df, file_extension
         except Exception as e:
             st.error(f"Error processing file: {e}")
@@ -139,7 +144,7 @@ if menu_option == "Transporter Onboarding":
         else:
             new_entry = pd.DataFrame([[company_name, gst_pan, email_id, contact_name, contact_number, "Successful"]],
                                      columns=existing_data.columns)
-            new_entry.to_csv(DATA_FILE, mode='a', header=not os.path.exists(DATA_FILE), index=False)
+            new_entry.to_csv(DATA_FILE, mode='a', header=False, index=False)
             st.success("Transporter created successfully")
 
 else:
