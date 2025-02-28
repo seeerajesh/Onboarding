@@ -33,95 +33,87 @@ def load_existing_data():
 
 existing_data = load_existing_data()
 
-# Sidebar menu
-menu = st.sidebar.radio("Menu", ["Transporter Onboarding", "User Onboarding", "Vehicle Onboarding", "Driver Onboarding"])
+st.title("Transporter Onboarding")
 
-if menu == "Transporter Onboarding":
-    st.title("Transporter Onboarding")
+# User input for manual transporter creation
+with st.form("manual_entry_form"):
+    cols = st.columns(5)
+    company_name = cols[0].text_input("Company Name")
+    gst_pan = cols[1].text_input("GST/PAN")
+    email_id = cols[2].text_input("Email ID")
+    contact_name = cols[3].text_input("Contact Name")
+    contact_number = cols[4].text_input("Contact Number")
+    submit_button = st.form_submit_button("Add Transporter")
 
-    # User input for manual transporter creation
-    with st.form("manual_entry_form"):
-        cols = st.columns(5)
-        company_name = cols[0].text_input("Company Name")
-        gst_pan = cols[1].text_input("GST/PAN")
-        email_id = cols[2].text_input("Email ID")
-        contact_name = cols[3].text_input("Contact Name")
-        contact_number = cols[4].text_input("Contact Number")
-        submit_button = st.form_submit_button("Add Transporter")
+if submit_button:
+    if gst_pan in disallowed_gst_pan:
+        st.error("Failure: Disallowed GST/PAN")
+    elif gst_pan in existing_data["GST/PAN"].values:
+        st.error("Failure: GST/PAN already exists")
+    else:
+        new_entry = pd.DataFrame([[company_name + "-zepto", gst_pan, email_id, contact_name, contact_number]],
+                                 columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number"])
+        new_entry.to_csv(data_file, mode='a', header=False, index=False, encoding='utf-8', sep=',')
+        st.success("Transporter added successfully")
+        existing_data = load_existing_data()
 
-    if submit_button:
-        if gst_pan in disallowed_gst_pan:
-            st.error("Failure: Disallowed GST/PAN")
-        elif gst_pan in existing_data["GST/PAN"].values:
-            st.error("Failure: GST/PAN already exists")
+uploaded_file = st.file_uploader("Upload Excel/CSV file", type=["xlsx", "csv"])
+
+if uploaded_file is not None:
+    try:
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file, dtype=str, encoding='utf-8', on_bad_lines='skip')
         else:
-            new_entry = pd.DataFrame([[company_name + "-zepto", gst_pan, email_id, contact_name, contact_number]],
-                                     columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number"])
-            new_entry.to_csv(data_file, mode='a', header=False, index=False, encoding='utf-8', sep=',')
-            st.success("Transporter added successfully")
-            existing_data = load_existing_data()
-
-    uploaded_file = st.file_uploader("Upload Excel/CSV file", type=["xlsx", "csv"])
-
-    if uploaded_file is not None:
-        try:
-            if uploaded_file.name.endswith(".csv"):
-                df = pd.read_csv(uploaded_file, dtype=str, encoding='utf-8', on_bad_lines='skip')
-            else:
-                df = pd.read_excel(uploaded_file, dtype=str)
+            df = pd.read_excel(uploaded_file, dtype=str)
+        
+        if "GST/PAN" not in df.columns:
+            st.error("Uploaded file must contain a 'GST/PAN' column.")
+        else:
+            failed_entries = []
+            new_entries = []
             
-            if "GST/PAN" not in df.columns:
-                st.error("Uploaded file must contain a 'GST/PAN' column.")
-            else:
-                failed_entries = []
-                new_entries = []
+            for _, row in df.iterrows():
+                gst_pan = str(row["GST/PAN"]).strip()
                 
-                for _, row in df.iterrows():
-                    gst_pan = str(row["GST/PAN"]).strip()
-                    
-                    # Check for mandatory fields
-                    if row.isnull().any():
-                        failed_entries.append(row)
-                        continue
-                    
-                    # Check for disallowed GST/PAN
-                    if gst_pan in disallowed_gst_pan:
-                        failed_entries.append(row)
-                        continue
-                    
-                    # Check for duplicate GST/PAN in existing data
-                    if gst_pan in existing_data["GST/PAN"].values:
-                        failed_entries.append(row)
-                        continue
-                    
-                    # Append valid entry to new entries list
-                    row["Company Name"] = str(row["Company Name"]) + "-zepto"
-                    new_entries.append(row)
+                # Check for mandatory fields
+                if row.isnull().any():
+                    failed_entries.append(row)
+                    continue
                 
-                # Append new valid entries to transporter_data.csv
-                if new_entries:
-                    new_df = pd.DataFrame(new_entries)
-                    new_df.to_csv(data_file, mode='a', header=False, index=False, encoding='utf-8', sep=',')
-                    existing_data = load_existing_data()
+                # Check for disallowed GST/PAN
+                if gst_pan in disallowed_gst_pan:
+                    failed_entries.append(row)
+                    continue
                 
-                # Output results
-                success_count = len(new_entries)
-                failure_count = len(failed_entries)
+                # Check for duplicate GST/PAN in existing data
+                if gst_pan in existing_data["GST/PAN"].values:
+                    failed_entries.append(row)
+                    continue
                 
-                st.success(f"Processing complete: {success_count} successful, {failure_count} failed")
-                
-                if failed_entries:
-                    failed_df = pd.DataFrame(failed_entries)
-                    failed_buffer = io.BytesIO()
-                    failed_df.to_csv(failed_buffer, index=False, encoding='utf-8')
-                    st.download_button("Download Failed Entries", failed_buffer, file_name="failed_entries.csv", mime="text/csv")
-        except Exception as e:
-            st.error(f"Error processing file: {e}")
+                # Append valid entry to new entries list
+                row["Company Name"] = str(row["Company Name"]) + "-zepto"
+                new_entries.append(row)
+            
+            # Append new valid entries to transporter_data.csv
+            if new_entries:
+                new_df = pd.DataFrame(new_entries)
+                new_df.to_csv(data_file, mode='a', header=False, index=False, encoding='utf-8', sep=',')
+                existing_data = load_existing_data()
+            
+            # Output results
+            success_count = len(new_entries)
+            failure_count = len(failed_entries)
+            
+            st.success(f"Processing complete: {success_count} successful, {failure_count} failed")
+            
+            if failed_entries:
+                failed_df = pd.DataFrame(failed_entries)
+                failed_buffer = io.BytesIO()
+                failed_df.to_csv(failed_buffer, index=False, encoding='utf-8')
+                st.download_button("Download Failed Entries", failed_buffer, file_name="failed_entries.csv", mime="text/csv")
+    except Exception as e:
+        st.error(f"Error processing file: {e}")
 
-    # Display existing data
+# Display existing data
 table_height = min(500, 40 * (len(existing_data) + 1))
 st.dataframe(existing_data, height=table_height)
-
-else:
-    st.title(f"{menu}")
-    st.write("This section is under construction.")
