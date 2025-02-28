@@ -23,31 +23,46 @@ def process_uploaded_file(uploaded_file):
             
             # Normalize column names (strip spaces, convert to lowercase)
             df.columns = df.columns.str.strip().str.lower()
-            required_columns = {"company name", "gst/pan", "email id", "contact name", "contact number"}
             
-            if not required_columns.issubset(set(df.columns)):
-                st.error(f"Uploaded file is missing required columns. Found columns: {list(df.columns)}")
+            # Expected column mapping
+            column_mapping = {
+                "company name": "Company Name",
+                "gst/pan": "GST/PAN",
+                "email id": "Email ID",
+                "contact name": "Contact Name",
+                "contact number": "Contact Number"
+            }
+            
+            # Validate columns
+            required_columns = set(column_mapping.keys())
+            found_columns = set(df.columns)
+            
+            if not required_columns.issubset(found_columns):
+                st.error(f"Uploaded file is missing required columns. Expected: {list(required_columns)}, Found: {list(found_columns)}")
                 return None, file_extension
             
+            # Rename columns to standard format
+            df = df.rename(columns=column_mapping)
+            
             # Adding comments column
-            df["comments"] = "Successful"
+            df["Comments"] = "Successful"
             
             # Checking for duplicate GST/PAN within the uploaded file
             for index, row in df.iterrows():
-                gst_pan = row["gst/pan"]
-                if pd.isna(gst_pan) or any(pd.isna(row[col]) for col in required_columns):
-                    df.at[index, "comments"] = "Failure, mandatory field not filled"
+                gst_pan = row["GST/PAN"]
+                if pd.isna(gst_pan) or any(pd.isna(row[col]) for col in column_mapping.values()):
+                    df.at[index, "Comments"] = "Failure, mandatory field not filled"
                 elif gst_pan in disallowed_gst_pan or gst_pan in existing_data["GST/PAN"].values:
-                    df.at[index, "comments"] = "Failure, company already exists"
+                    df.at[index, "Comments"] = "Failure, company already exists"
             
             # Summary statistics
-            success_count = (df["comments"] == "Successful").sum()
-            failure_count = (df["comments"] != "Successful").sum()
+            success_count = (df["Comments"] == "Successful").sum()
+            failure_count = (df["Comments"] != "Successful").sum()
             
             st.success(f"Processing Complete: {success_count} successful, {failure_count} failed.")
             
             # Append successful entries to the existing data file
-            successful_entries = df[df["comments"] == "Successful"]
+            successful_entries = df[df["Comments"] == "Successful"]
             successful_entries.to_csv(DATA_FILE, mode='a', header=not os.path.exists(DATA_FILE), index=False)
             
             return df, file_extension
