@@ -24,7 +24,7 @@ def load_existing_data():
     try:
         if os.stat(data_file).st_size == 0:
             return pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"])
-        return pd.read_csv(data_file, dtype=str, encoding='utf-8', delimiter=',', error_bad_lines=False)
+        return pd.read_csv(data_file, dtype=str, encoding='utf-8', delimiter=',')
     except Exception as e:
         st.error(f"Error loading data file: {e}")
         return pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"])
@@ -36,19 +36,13 @@ st.title("Transporter Onboarding")
 
 # User input for manual transporter creation
 with st.form("manual_entry_form"):
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-    with col1:
-        company_name = st.text_input("Company Name")
-    with col2:
-        gst_pan = st.text_input("GST/PAN")
-    with col3:
-        email_id = st.text_input("Email ID")
-    with col4:
-        contact_name = st.text_input("Contact Name")
-    with col5:
-        contact_number = st.text_input("Contact Number")
-    with col6:
-        comments = st.text_input("Comments", "Successful")
+    cols = st.columns(6)
+    company_name = cols[0].text_input("Company Name")
+    gst_pan = cols[1].text_input("GST/PAN")
+    email_id = cols[2].text_input("Email ID")
+    contact_name = cols[3].text_input("Contact Name")
+    contact_number = cols[4].text_input("Contact Number")
+    comments = cols[5].text_input("Comments", "Successful")
     submit_button = st.form_submit_button("Add Transporter")
 
 if submit_button:
@@ -68,7 +62,7 @@ uploaded_file = st.file_uploader("Upload Excel/CSV file", type=["xlsx", "csv"])
 if uploaded_file is not None:
     try:
         if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file, dtype=str, encoding='utf-8', delimiter=',', error_bad_lines=False)
+            df = pd.read_csv(uploaded_file, dtype=str, encoding='utf-8', delimiter=',')
         else:
             df = pd.read_excel(uploaded_file, dtype=str)
         
