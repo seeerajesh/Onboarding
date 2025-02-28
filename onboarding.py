@@ -25,7 +25,7 @@ def load_existing_data():
         if os.stat(data_file).st_size == 0:
             return pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number"])
         df = pd.read_csv(data_file, dtype=str, encoding='utf-8', on_bad_lines='skip')
-        df["Company Name"] = df["Company Name"].astype(str) + "-zepto"
+        df["Company Name"] = df["Company Name"].apply(lambda x: x if x.endswith("-zepto") else x + "-zepto")
         return df
     except Exception as e:
         st.error(f"Error loading data file: {e}")
@@ -49,9 +49,14 @@ if submit_button:
     if gst_pan in disallowed_gst_pan:
         st.error("Failure: Disallowed GST/PAN")
     elif gst_pan in existing_data["GST/PAN"].values:
-        st.error("Failure: GST/PAN already exists")
+        st.warning("GST/PAN already exists for another transporter. Do you want to merge with the existing transporter?")
+        if st.button("Yes"):
+            st.success("Transporter name merged with existing.")
+        elif st.button("No"):
+            st.error("Please contact Admin.")
     else:
-        new_entry = pd.DataFrame([[company_name + "-zepto", gst_pan, email_id, contact_name, contact_number]],
+        company_name = company_name if company_name.endswith("-zepto") else company_name + "-zepto"
+        new_entry = pd.DataFrame([[company_name, gst_pan, email_id, contact_name, contact_number]],
                                  columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number"])
         new_entry.to_csv(data_file, mode='a', header=False, index=False, encoding='utf-8', sep=',')
         st.success("Transporter added successfully")
@@ -91,7 +96,7 @@ if uploaded_file is not None:
                     continue
                 
                 # Append valid entry to new entries list
-                row["Company Name"] = str(row["Company Name"]) + "-zepto"
+                row["Company Name"] = row["Company Name"] if row["Company Name"].endswith("-zepto") else row["Company Name"] + "-zepto"
                 new_entries.append(row)
             
             # Append new valid entries to transporter_data.csv
