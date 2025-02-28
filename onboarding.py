@@ -11,7 +11,7 @@ data_file = "transporter_data.csv"
 
 # Ensure the data file exists
 if not os.path.exists(data_file):
-    pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"]).to_csv(data_file, index=False)
+    pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number"]).to_csv(data_file, index=False)
 
 # Set write permissions
 try:
@@ -23,11 +23,11 @@ except Exception as e:
 def load_existing_data():
     try:
         if os.stat(data_file).st_size == 0:
-            return pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"])
-        return pd.read_csv(data_file, dtype=str, encoding='utf-8', delimiter=',')
+            return pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number"])
+        return pd.read_csv(data_file, dtype=str, encoding='utf-8', on_bad_lines='skip')
     except Exception as e:
         st.error(f"Error loading data file: {e}")
-        return pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"])
+        return pd.DataFrame(columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number"])
 
 existing_data = load_existing_data()
 
@@ -36,13 +36,12 @@ st.title("Transporter Onboarding")
 
 # User input for manual transporter creation
 with st.form("manual_entry_form"):
-    cols = st.columns(6)
+    cols = st.columns(5)
     company_name = cols[0].text_input("Company Name")
     gst_pan = cols[1].text_input("GST/PAN")
     email_id = cols[2].text_input("Email ID")
     contact_name = cols[3].text_input("Contact Name")
     contact_number = cols[4].text_input("Contact Number")
-    comments = cols[5].text_input("Comments", "Successful")
     submit_button = st.form_submit_button("Add Transporter")
 
 if submit_button:
@@ -51,8 +50,8 @@ if submit_button:
     elif gst_pan in existing_data["GST/PAN"].values:
         st.error("Failure: GST/PAN already exists")
     else:
-        new_entry = pd.DataFrame([[company_name, gst_pan, email_id, contact_name, contact_number, comments]],
-                                 columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"])
+        new_entry = pd.DataFrame([[company_name, gst_pan, email_id, contact_name, contact_number]],
+                                 columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number"])
         new_entry.to_csv(data_file, mode='a', header=False, index=False, encoding='utf-8', sep=',')
         st.success("Transporter added successfully")
         existing_data = load_existing_data()
@@ -62,14 +61,13 @@ uploaded_file = st.file_uploader("Upload Excel/CSV file", type=["xlsx", "csv"])
 if uploaded_file is not None:
     try:
         if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file, dtype=str, encoding='utf-8', delimiter=',')
+            df = pd.read_csv(uploaded_file, dtype=str, encoding='utf-8', on_bad_lines='skip')
         else:
             df = pd.read_excel(uploaded_file, dtype=str)
         
         if "GST/PAN" not in df.columns:
             st.error("Uploaded file must contain a 'GST/PAN' column.")
         else:
-            df["Comments"] = "Successful"
             failed_entries = []
             new_entries = []
             
