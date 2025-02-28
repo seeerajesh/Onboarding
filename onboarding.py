@@ -34,6 +34,33 @@ existing_data = load_existing_data()
 # Streamlit UI
 st.title("Transporter Onboarding")
 
+# User input for manual transporter creation
+with st.form("manual_entry_form"):
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        company_name = st.text_input("Company Name")
+    with col2:
+        gst_pan = st.text_input("GST/PAN")
+    with col3:
+        email_id = st.text_input("Email ID")
+    with col4:
+        contact_name = st.text_input("Contact Name")
+    with col5:
+        contact_number = st.text_input("Contact Number")
+    submit_button = st.form_submit_button("Add Transporter")
+
+if submit_button:
+    if gst_pan in disallowed_gst_pan:
+        st.error("Failure: Disallowed GST/PAN")
+    elif gst_pan in existing_data["GST/PAN"].values:
+        st.error("Failure: GST/PAN already exists")
+    else:
+        new_entry = pd.DataFrame([[company_name, gst_pan, email_id, contact_name, contact_number, "Successful"]],
+                                 columns=["Company Name", "GST/PAN", "Email ID", "Contact Name", "Contact Number", "Comments"])
+        new_entry.to_csv(data_file, mode='a', header=False, index=False)
+        st.success("Transporter added successfully")
+        existing_data = load_existing_data()
+
 uploaded_file = st.file_uploader("Upload Excel/CSV file", type=["xlsx", "csv"])
 
 if uploaded_file is not None:
@@ -51,7 +78,7 @@ if uploaded_file is not None:
             new_entries = []
             
             for _, row in df.iterrows():
-                gst_pan = row["GST/PAN"].strip()
+                gst_pan = str(row["GST/PAN"]).strip()
                 
                 # Check for mandatory fields
                 if row.isnull().any():
@@ -78,6 +105,7 @@ if uploaded_file is not None:
             if new_entries:
                 new_df = pd.DataFrame(new_entries)
                 new_df.to_csv(data_file, mode='a', header=False, index=False)
+                existing_data = load_existing_data()
                 
             # Output results
             success_count = len(new_entries)
@@ -92,3 +120,7 @@ if uploaded_file is not None:
                 st.download_button("Download Failed Entries", failed_buffer, file_name="failed_entries.csv", mime="text/csv")
     except Exception as e:
         st.error(f"Error processing file: {e}")
+
+# Display existing data
+table_height = min(500, 40 * (len(existing_data) + 1))
+st.dataframe(existing_data, height=table_height)
