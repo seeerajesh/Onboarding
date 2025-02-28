@@ -121,6 +121,7 @@ if menu == "Transporter Onboarding":
     # Display existing data
 table_height = min(500, 40 * (len(existing_data) + 1))
 st.dataframe(existing_data, height=table_height)
+
 else:
     st.title(f"{menu}")
     st.write("This section is under construction.")
